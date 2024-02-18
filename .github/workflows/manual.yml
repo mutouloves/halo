@@ -48,7 +48,7 @@ jobs:
       - name: 构建 Docker 并上传
         uses: ./.github/actions/docker-buildx-push
         with:
-          image-name: ${{ github.event_name == 'release' && 'halo' || 'halo-dev' }}
+          image-name: halo
           dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
           dockerhub-token: ${{ secrets.DOCKERHUB_PASS }}
           push: true
