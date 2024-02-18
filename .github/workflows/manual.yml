@@ -8,8 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Environment
         uses: ./.github/actions/setup-env
+        
       - name: Reset version of Halo
         if: github.event_name == 'release'
         shell: bash
@@ -18,8 +20,10 @@ jobs:
           version=${{ github.event.release.tag_name }}
           version=${version#v}
           sed -i "s/version=.*-SNAPSHOT$/version=$version/1" gradle.properties
+          
       - name: Build Halo
         run: ./gradlew clean && ./gradlew downloadPluginPresets && ./gradlew build -x check
+        
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -31,12 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+    
       - uses: actions/checkout@v4
+      
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           name: halo-artifacts
           path: application/build/libs
+          
       - name: Docker Buildx and Push
         uses: ./.github/actions/docker-buildx-push
         with:
