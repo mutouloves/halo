@@ -1,32 +1,26 @@
-name: "Docker buildx and push"
-description: "Buildx and push the Docker image."
+name: "构建 Docker 并上传"
 
 inputs:
   dockerhub-user:
-    description: "User name for the DockerHub account"
     required: false
     default: ""
   dockerhub-token:
-    description: Token for the DockerHub account
     required: false
     default: ""
   push:
-    description: Should push the docker image or not.
     required: false
     default: "false"
   platforms:
-    description: Target platforms for building image
     required: false
     default: "linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x"
   image-name:
-    description: The basic name of docker.
     required: false
     default: "halo"
 
 runs:
   using: "composite"
   steps:
-    - name: Docker meta for Halo
+    - name: Halo 的 Docker 元
       id: meta
       uses: docker/metadata-action@v5
       with:
@@ -37,17 +31,21 @@ runs:
           type=semver,pattern={{ version }}
         flavor: |
           latest=false
-    - name: Set up QEMU
+          
+    - name: 建虚拟机
       uses: docker/setup-qemu-action@v3
-    - name: Set up Docker Buildx
+      
+    - name: 设置构建
       uses: docker/setup-buildx-action@v3
-    - name: Login to DockerHub
+      
+    - name: 登陆 Docker Hub
       if: inputs.dockerhub-token != '' && github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
         username: ${{ inputs.dockerhub-user }}
         password: ${{ inputs.dockerhub-token }}
-    - name: Build and push
+        
+    - name: 构建镜像并上传
       uses: docker/build-push-action@v5
       with:
         context: .
