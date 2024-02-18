@@ -3,10 +3,6 @@ name: Manual # 手动触发
 on:
   workflow_dispatch:  # 手动触发
 
-jobs: #任务
-  docker-build:
-    runs-on: ubuntu-latest
-
 jobs:
   test:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
