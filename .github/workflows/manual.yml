@@ -3,24 +3,36 @@ name: Manual # 手动触发
 on:
   workflow_dispatch:  # 手动触发
 
-jobs:
+jobs: #任务
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Environment
-        uses: ./.github/actions/setup-env
-      - name: Reset version of Halo
-        if: github.event_name == 'release'
-        shell: bash
-        run: |
-          # Set the version with tag name when releasing
-          version=${{ github.event.release.tag_name }}
-          version=${version#v}
-          sed -i "s/version=.*-SNAPSHOT$/version=$version/1" gradle.properties
-      - name: Build Halo
+      - name: 核对仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+          cache-dependency-path: 'ui/pnpm-lock.yaml'
+      
+      - name: 设置 JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: "temurin"
+        cache: "gradle"
+        java-version: 17
+
+      - name: 构建 Halo
         run: ./gradlew clean && ./gradlew downloadPluginPresets && ./gradlew build -x check
-      - name: Upload Artifacts
+
+      - name: 上传工件
         uses: actions/upload-artifact@v4
         with:
           name: halo-artifacts
@@ -31,48 +43,46 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
-
-      - name: Download Artifacts
+      - name: 核对仓库
+        uses: actions/checkout@v4 # v3.2.0 GitHub 的 checkout @后面可为版本、也可为哈希值
+      
+      - name: 下载工件
         uses: actions/download-artifact@v4
         with:
           name: halo-artifacts
           path: application/build/libs
-
-      - name: Set up QEMU
+     
+      - name: 建虚拟机
         uses: docker/setup-qemu-action@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: 设置构建
+        uses: docker/setup-buildx-action@v3
 
-    - name: Login to DockerHub
-      if: inputs.dockerhub-token != '' && github.event_name != 'pull_request'
-      uses: docker/login-action@v3
-      with:
-        dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
-        dockerhub-token: ${{ secrets.DOCKERHUB_PASS }}
+      - name: 登陆 Docker Hub
+        uses: docker/login-action@v3 # v2.1.0 GitHub 的 docker-login @后面可为版本、也可为哈希值
+        with:
+          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_PASS }}
 
-    - name: 确定 Docker 标签
-      id: vars
-      shell: bash
-      run: |
-        # 由 github.ref 确定我们要构建的标签
-        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          echo "DOCKER_TAG=${GITHUB_REF#refs/*/}" | tee -a "${GITHUB_OUTPUT}"
-        elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
-          echo "DOCKER_TAG=1.0" | tee -a "${GITHUB_OUTPUT}"
-        fi
+      - name: 确定 Docker 标签
+        id: vars
+        shell: bash
+        run: |
+          # 由 github.ref 确定我们要构建的标签
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "DOCKER_TAG=${GITHUB_REF#refs/*/}" | tee -a "${GITHUB_OUTPUT}"
+          elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            echo "DOCKER_TAG=1.0" | tee -a "${GITHUB_OUTPUT}"
+          fi
 
-    - name: Build and push
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        image-name: halo
-        push: true
-        platforms: linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
-        labels: ${{ steps.meta.outputs.labels }}
-        tags: |
+      - name: 构建镜像并上传
+        id: docker_build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+          push: true
+          tags: |
             mutouloves/halo:latest
             mutouloves/halo:${{steps.vars.outputs.DOCKER_TAG}}
